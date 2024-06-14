@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List, Union, Dict, Literal
 from typing_extensions import Annotated
+import json
 
 
 from collections import defaultdict
@@ -90,7 +91,10 @@ async def stream_chat(websocket: WebSocket):
         return
     
 @router.post('/local')
-async def chat(data: CompletionRequestMessages):
+async def chat(data):
+    print('post data:', data)
+    data = json.dumps(data['input'])
+
     global llm 
     if not data.stream:
         response = llm.chat(data.messages)
@@ -99,7 +103,7 @@ async def chat(data: CompletionRequestMessages):
     
     response = llm.stream_chat(data.messages)
     return EventSourceResponse(response, media_type="text/event-stream")
-        
+
 
 @router.websocket('/local')
 async def stream_chat(websocket: WebSocket):
