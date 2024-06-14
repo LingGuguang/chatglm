@@ -14,8 +14,8 @@ class MyTask(TaskSet):
                     ret.append(line)
             return ret 
         
-        self.questions = read_jsonl('datasets/zhihu.jsonl')
-        self.question_count = 0
+        # self.questions = read_jsonl('datasets/zhihu.jsonl')
+        # self.question_count = 0
 
 
         
@@ -26,14 +26,17 @@ class MyTask(TaskSet):
     def opLogin(self):
         # 登录参数
 
-        q = self.questions[self.question_count]
-        self.question_count += 1
+        # q = self.questions[self.question_count]
+        # self.question_count += 1
 
         data = {
                 'messages':[{
                     'role': 'user',
-                    'content': q['问']
-                }]
+                    # 'content': q['问'],
+                    'content': "写一个三百字小作文，题目自拟"
+
+                }],
+                'stream': True
             }
         json_data = json.dumps(data)
         # 发送登录请求，url与on_start中的一样，直接调用

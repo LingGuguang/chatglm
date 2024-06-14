@@ -12,15 +12,12 @@ from .utils import Request, request, stream_request
 from model import Qwen
 import time, asyncio
 # from ...main import llm
+from sse_starlette.sse import EventSourceResponse
 
-
-
-
+EventSourceResponse.DEFAULT_PING_INTERVAL = 1000
 router = APIRouter(prefix="/chat")
 
 llm = Qwen()
-
-
 
 class BasicMessage(BaseModel):
     role: Literal['user', 'assistant']
@@ -28,6 +25,7 @@ class BasicMessage(BaseModel):
 
 class CompletionRequestMessages(BaseModel):
     messages: List[BasicMessage]
+    stream: bool = False
 
 
 
@@ -94,9 +92,13 @@ async def stream_chat(websocket: WebSocket):
 @router.post('/local')
 async def chat(data: CompletionRequestMessages):
     global llm 
-    response = llm.chat(data.messages)
-    print('chat response:', response)
-    return response
+    if not data.stream:
+        response = llm.chat(data.messages)
+        print('chat response:', response)
+        return response
+    
+    response = llm.stream_chat(data.messages)
+    return EventSourceResponse(response, media_type="text/event-stream")
         
 
 @router.websocket('/local')
@@ -116,6 +118,7 @@ async def stream_chat(websocket: WebSocket):
                 messages = list()
                 continue
 
+            
             response_buffer = ''
             for response in llm.stream_chat(messages):
                 # print('response:', response)
