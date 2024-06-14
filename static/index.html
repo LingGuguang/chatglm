@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<body>
+    <p>连接状态:<span id="status">未连接</span></p>
+    <p>对话:<span id="message"></span></p>
+    <p><input id="input"></p>
+    <button id="submitButton">提交</button>
+    <button id="relinkButton">重新连接</button>
+    
+</body>
+
+
+<script>
+    let status = document.getElementById("status")
+
+    function connectWS(){
+        websocket = new WebSocket("ws://127.0.0.1:8000/chat/local")
+        websocket.addEventListener("open", (event)=>{
+            status.innerText = "已连接"
+        })
+        websocket.addEventListener("error", (event)=>{
+            status.innerText = "已失败"
+        })
+        websocket.addEventListener("close", (event)=>{
+            status.innerText = "已断开"
+        })
+        websocket.addEventListener("message", (event)=>{
+            message.innerText += event.data
+        })
+    }
+
+    connectWS()
+
+    submitButton.addEventListener("click", ()=>{
+        message.innerText += "\n" + "user:" + input.value + "\n" + "assistant:"
+        websocket.send(input.value)
+        input.value = ""
+    })
+
+    relinkButton.addEventListener("click", ()=>{
+        connectWS()
+        console.log("已重连")
+    })
+</script>    
+
+
+</html>
