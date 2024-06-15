@@ -22,16 +22,15 @@ llm = Qwen()
 
 class BasicMessage(BaseModel):
     role: Literal['user', 'assistant']
-    content: str = None
+    content: Union[str, None] = None
 
 class CompletionRequestMessages(BaseModel):
-    messages: List[BasicMessage]
+    messages: Union[List[BasicMessage], None]
     stream: bool = False
 
 class CompletionResponseMessages(BaseModel):
-    messages: List[BasicMessage]
-    response: Union[BasicMessage] 
-    # finish_reason: Literal['stop']
+    messages: Union[List[BasicMessage], None]
+    response: Union[BasicMessage, None] 
     finish: bool
 
 
@@ -51,13 +50,11 @@ async def chat(inp: str, exp_seconds: Annotated[int, Query()]=10):
         "stream": False
     }
     response = await request(url, params, exp_seconds)
-
     return response.get('choices')[0].get('message').get('content')
 
 
-
 @router.websocket('/zhipu')
-async def stream_chat(websocket: WebSocket):
+async def websocket_chat(websocket: WebSocket):
     try:
         await websocket.accept() 
         messages = list() # 存储记忆 
@@ -90,22 +87,25 @@ async def stream_chat(websocket: WebSocket):
         return
         
     
-@router.post('/local')
+
+
+@router.post('/local/chat', response_model=CompletionResponseMessages)
 async def chat(data: CompletionRequestMessages):
     # print('post data:', type(data), data)
-
     global llm 
-    if not data.stream:
-        response = llm.chat(data.messages)
-        print('chat response:', response)
-        return response
-    
+    response = llm.chat(data.messages)
+    return wrapper_response(data.messages, response, finish=True)
+
+
+@router.post('/local/stream_chat')
+async def stream_chat(data: CompletionRequestMessages):
+    global llm 
     response = llm.stream_chat(data.messages)
     return EventSourceResponse(response, media_type="text/event-stream")
     
 
-@router.websocket('/local')
-async def stream_chat(websocket: WebSocket):
+@router.websocket('/local/websocket_chat')
+async def websocket_chat(websocket: WebSocket):
     global llm
     try:
         await websocket.accept() 
@@ -128,34 +128,25 @@ async def stream_chat(websocket: WebSocket):
                     continue
                 response_buffer += response
                 response = wrapper_response(messages, response)
-
                 await websocket.send_json(response)
-                # await asyncio.sleep(0.05)
-            stop = wrapper_response()
-            await websocket.send_json(stop)
+
+            finish = wrapper_response(finish=True)
+            await websocket.send_json(finish)
             messages += [{'role': 'assistant', 'content': response_buffer}]
     except WebSocketDisconnect:
         return
     
-def wrapper_response(messages=None, response=None):
-    if messages and response:
-        response = {
-            'role': 'assistant',
-            'content': response 
-        }
-        response = {
-            'messages': messages,
-            'response': response,
-            'finish': False
-        }
-        return response
-    else:
-        response = {
-            'messages': None,
-            'response': None,
-            'finish': True
-        }
-        return response
+def wrapper_response(messages=None, response=None, finish=False):
+    response = {
+        'role': 'assistant',
+        'content': response 
+    }
+    response = {
+        'messages': messages,
+        'response': response,
+        'finish': finish
+    }
+    return response
 
 if __name__ == "__main__":
     asyncio.run()

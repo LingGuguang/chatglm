@@ -28,18 +28,8 @@ class Qwen:
     def isrunning(self):
         return self.running
 
-    def _on(self):
-        print(f'+++++++++ 推理中 {self.count} ++++++++++\n\n\n')
-        self.running = True
-    
-    def _off(self):
-        print(f'+++++++++ 推理结束{self.count} ++++++++++\n\n\n')
-        self.count += 1
-        self.running = False
 
-    def chat(self, query: List[Dict[str, str]]):
-        self._on()
-        
+    def chat(self, query: List[Dict[str, str]]):      
         messages = self._messages(query)
 
         text = self.tokenizer.apply_chat_template(
@@ -51,8 +41,7 @@ class Qwen:
 
         generated_ids = self.model.generate(
             model_inputs.input_ids,
-            max_new_tokens=512,
-            temperature=0
+            max_new_tokens=512
         )
         generated_ids = [
             output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
@@ -60,7 +49,6 @@ class Qwen:
 
         response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-        self._off()
         return response 
     
     def stream_chat(self, query: List[Dict[str, str]]):
