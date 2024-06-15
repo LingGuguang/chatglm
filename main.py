@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Query
+from typing import List, Dict, Union
 import os 
 import dotenv 
 from contextlib import asynccontextmanager
@@ -33,6 +34,17 @@ fs_app.mount("/static", StaticFiles(directory="static"), name="static")
 async def redirect_to_html():
     # 重定向到静态文件夹中的 HTML 文件
     return RedirectResponse(url="/static/index.html")
+
+async def common_parameters(
+    q: Union[str, None] = None, skip: int = 0, limit: int = 100
+):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+@fs_app.get("/items/")
+async def read_items(commons: dict = Depends(common_parameters)):
+    return commons
+
 
 # gradio
 gr_app = get_gradio()

@@ -28,12 +28,11 @@ class CompletionRequestMessages(BaseModel):
     messages: List[BasicMessage]
     stream: bool = False
 
-
-
 class CompletionResponseMessages(BaseModel):
     messages: List[BasicMessage]
-    response: BasicMessage 
-
+    response: Union[BasicMessage] 
+    # finish_reason: Literal['stop']
+    finish: bool
 
 
 
@@ -89,11 +88,11 @@ async def stream_chat(websocket: WebSocket):
             messages.append(dict(result))
     except WebSocketDisconnect:
         return
+        
     
 @router.post('/local')
-async def chat(data):
-    print('post data:', data)
-    data = json.dumps(data['input'])
+async def chat(data: CompletionRequestMessages):
+    # print('post data:', type(data), data)
 
     global llm 
     if not data.stream:
@@ -103,7 +102,7 @@ async def chat(data):
     
     response = llm.stream_chat(data.messages)
     return EventSourceResponse(response, media_type="text/event-stream")
-
+    
 
 @router.websocket('/local')
 async def stream_chat(websocket: WebSocket):
@@ -122,22 +121,41 @@ async def stream_chat(websocket: WebSocket):
                 messages = list()
                 continue
 
-            
             response_buffer = ''
             for response in llm.stream_chat(messages):
                 # print('response:', response)
                 if response in [None, '']:
                     continue
-                await websocket.send_text(response)
-                await asyncio.sleep(0.05)
-                
-                response_buffer += response 
-            messages += [{'role': 'assistant', 'content': response_buffer}]
+                response_buffer += response
+                response = wrapper_response(messages, response)
 
+                await websocket.send_json(response)
+                # await asyncio.sleep(0.05)
+            stop = wrapper_response()
+            await websocket.send_json(stop)
+            messages += [{'role': 'assistant', 'content': response_buffer}]
     except WebSocketDisconnect:
         return
     
-
+def wrapper_response(messages=None, response=None):
+    if messages and response:
+        response = {
+            'role': 'assistant',
+            'content': response 
+        }
+        response = {
+            'messages': messages,
+            'response': response,
+            'finish': False
+        }
+        return response
+    else:
+        response = {
+            'messages': None,
+            'response': None,
+            'finish': True
+        }
+        return response
 
 if __name__ == "__main__":
     asyncio.run()

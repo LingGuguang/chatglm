@@ -1,15 +1,21 @@
-from fastapi import FastAPI
-import gradio as gr
-from fastapi.middleware.cors import CORSMiddleware
+from typing import Union
 
-CUSTOM_PATH = "/gradio"
+from fastapi import Depends, FastAPI
+
 app = FastAPI()
 
-@app.get("/")
-def read_main():
-    return {"message": "This is your main app"}
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+async def common_parameters(
+    q: Union[str, None] = None, skip: int = 0, limit: int = 100
+):
+    return {"q": q, "skip": skip, "limit": limit}
 
-io = gr.Interface(lambda x: "Hello, " + x + "!", "textbox", "textbox")
-app = gr.mount_gradio_app(app, io, path=CUSTOM_PATH)
+
+@app.get("/items/")
+async def read_items(commons: dict = Depends(common_parameters)):
+    return commons
+
+
+@app.get("/users/")
+async def read_users(commons: dict = Depends(common_parameters)):
+    return commons
